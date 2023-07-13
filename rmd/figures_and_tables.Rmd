@@ -130,7 +130,6 @@ siren_split |>
         title = ""
     ) +
     theme_minimal(14) +
-    # add some spacing and increase the font size
     theme(
         legend.position = "none",
         axis.title.y = element_text(margin = margin(0, 10, 0, 0)),

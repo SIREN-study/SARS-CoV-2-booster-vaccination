@@ -30,6 +30,12 @@ cox_model_3 <- siren_split |>
     filter(months_since_pos != "No evidence of infection") |>
     coxphmulti(dependent, explanatory_multi)
 
+# cox_model_4
+explanatory_multi <- c("months_since_pos", "months_since_pos:vaccine_short", "gender", "strata(occupation_setting)", "strata(agegr)", "household", "strata(region)", "cluster(trust_code)")
+cox_model_4 <- siren_split |>
+    filter(months_since_pos != "No evidence of infection") |>
+    coxphmulti(dependent, explanatory_multi)
+
 cox_model_results <- grep("cox_model", ls(), value = TRUE)
 
 save(list = cox_model_results, file = here("data/cox_models.RData"))

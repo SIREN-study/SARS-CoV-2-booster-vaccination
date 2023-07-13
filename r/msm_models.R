@@ -1,5 +1,5 @@
 #
-# Purpose: Runs the multistate models for the SIREN data
+# Purpose: Runs the multi-state models for the SIREN data
 #
 
 here::i_am("r/msm_models.R")
@@ -43,7 +43,7 @@ siren_df_sym <- siren_df_interim4 |>
         months_since_pos = fct_drop(months_since_pos)
     )
 
-# prepare a constraint list for the with covid_symptom models
+# prepare a constraint list for the models which include covid_symptoms
 constraint_list <- list(
     `monthyearOct 2022` = c(1, 1, 2, 2),
     `monthyearNov 2022` = c(1, 1, 2, 2),
@@ -125,6 +125,20 @@ msm_model_3 <- future(msm::msm(
 msm_model_4 <- future(msm::msm(
     formula = state ~ time,
     subject = study_id,
+    data = siren_df,
+    qmatrix = rbind(c(0, 0.1), c(0.1, 0)),
+    covariates = list(
+        "1-2" = ~ monthyear + months_since_pos + months_since_pos:vaccine_short + region + agegr + household + gender + occupation_setting,
+        "2-1" = ~ months_since_pos + months_since_pos:vaccine_short + agegr
+    ),
+    censor = 99,
+    control = list(maxit = 100000, reltol = 1e-16, fnscale = 40000)
+))
+
+# MSM model 5
+msm_model_5 <- future(msm::msm(
+    formula = state ~ time,
+    subject = study_id,
     data = siren_df_sym,
     qmatrix = rbind(c(0, 0.1, 0.1), c(0.1, 0, 0), c(0.1, 0, 0)),
     covariates = list(
@@ -138,8 +152,8 @@ msm_model_4 <- future(msm::msm(
     control = list(maxit = 100000, reltol = 1e-16, fnscale = 70000)
 ))
 
-# MSM model 5
-msm_model_5 <- future(msm::msm(
+# MSM model 6
+msm_model_6 <- future(msm::msm(
     formula = state ~ time,
     subject = study_id,
     data = siren_df_sym,
@@ -155,8 +169,8 @@ msm_model_5 <- future(msm::msm(
     control = list(maxit = 100000, reltol = 1e-16, fnscale = 40000)
 ))
 
-# MSM model 6
-msm_model_6 <- future(msm::msm(
+# MSM model 7
+msm_model_7 <- future(msm::msm(
     formula = state ~ time,
     subject = study_id,
     data = siren_df_sym,
@@ -178,6 +192,7 @@ msm_model_3 <- value(msm_model_3)
 msm_model_4 <- value(msm_model_4)
 msm_model_5 <- value(msm_model_5)
 msm_model_6 <- value(msm_model_6)
+msm_model_7 <- value(msm_model_7)
 
 msm_model_results <- grep("msm_model", ls(), value = TRUE)
 

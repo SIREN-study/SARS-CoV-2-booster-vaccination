@@ -231,6 +231,8 @@ model_fit <- function(model, prev, dataset = NA, n_states = 2, mintime = 0, time
     # to do this need to specify BOTH the subset and the initstates options (perhaps something to raise with Chris)
     # subset is a vector of study_ids, initstates is the number of individuals occupying each state at time zero
 
+    out <- list()
+
     # to plot
     sample <- dataset |>
         slice_sample(prop = 0.2) |>
@@ -398,6 +400,7 @@ model_fit <- function(model, prev, dataset = NA, n_states = 2, mintime = 0, time
         out$fig <- p1 + p2 + p3 + plot_layout(guides = "collect") + theme(legend.position = "top")
     }
 
+    # just the second plot
     out$fig1 <- p2 + theme(legend.position = "top")
 
     return(out)

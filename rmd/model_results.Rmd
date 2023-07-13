@@ -131,9 +131,9 @@ ggsave(here("figures/ve_long.png"), height = 12, width = 10)
 ```
 
 ```{r vaccine-effectiveness-2}
-# actually we want to present the marginal effect - todo
+# present the marginal effect
 
-forest_plot(msm_model_3, table = TRUE, covars = "months_since_pos:vaccine_short") |>
+forest_plot(msm_model_4, table = TRUE, covars = "months_since_pos:vaccine_short") |>
     mutate(
         est = 1 - est,
         lower = 1 - lower,
@@ -189,7 +189,7 @@ ggplot_sym <- function(df, color) {
         )
 }
 
-p1 <- forest_plot(msm_model_4, table = TRUE, transition2 = "State 1 - State 3", covars = "vaccine_short") |>
+p1 <- forest_plot(msm_model_5, table = TRUE, transition2 = "State 1 - State 3", covars = "vaccine_short") |>
     mutate(
         est = 1 - est,
         lower = 1 - lower,
@@ -202,7 +202,7 @@ p1 <- forest_plot(msm_model_4, table = TRUE, transition2 = "State 1 - State 3", 
         y = "Estimated relative VE"
     )
 
-p2 <- forest_plot(msm_model_5, table = TRUE, transition2 = "State 1 - State 3", covars = "vaccine") |>
+p2 <- forest_plot(msm_model_6, table = TRUE, transition2 = "State 1 - State 3", covars = "vaccine") |>
     mutate(
         est = 1 - est,
         lower = 1 - lower,
@@ -218,7 +218,7 @@ p2 <- forest_plot(msm_model_5, table = TRUE, transition2 = "State 1 - State 3", 
         y = "Estimated relative VE"
     )
 
-p3 <- forest_plot(mmsvrahgo_sym, table = TRUE, transition2 = "State 1 - State 3", covars = "months_since_pos") |>
+p3 <- forest_plot(msm_model_7, table = TRUE, transition2 = "State 1 - State 3", covars = "months_since_pos") |>
     mutate(
         est = 1 - est,
         lower = 1 - lower,
@@ -255,7 +255,8 @@ siren_df <- siren_df_interim4 |>
         prev_var = fct_drop(prev_var)
     )
 
-diagnostics <- model_results(mmllvrahgo_noev,
+# compare the diagnostics of the most complete model
+diagnostics <- model_results(msm_model_3,
     dataset = siren_df,
     mintime = 0,
     timezero = 0,
@@ -272,44 +273,26 @@ diagnostics <- model_results(mmllvrahgo_noev,
     )
 )
 
-diagnostics
-
 diagnostics$fig1 + theme(legend.position = "top")
 
 ggsave(here("figures/expected_observed.png"), width = 7, height = 5)
 ```
 
 ```{r sojourn-time}
-# to get the covariate values
-# debug(qmatrix.msm)
-# qmatrix.msm(msvag_just_rev, covariates = list(vaccine_short = "Waned third dose"))
-# step through using Return
-# query covlist to get the values for the below
-# Q to exit
-# undebug(qmatrix.msm)
 
-sojourn.msm(msvag_just_rev)$estimates[2] * 7
-sojourn.msm(msvag_just_rev)$L[2] * 7
-sojourn.msm(msvag_just_rev)$U[2] * 7
+sojourn.msm(msm_model_3)$estimates[2] * 7
+sojourn.msm(msm_model_3)$L[2] * 7
+sojourn.msm(msm_model_3)$U[2] * 7
 
-sojourn.msm(mmsvag_sym_rev)
-
-# sojorn time for symptomatic
-S8 <- sojourn.msm(mmsvag_sym_rev)
-
-# trace("qmatrix.msm", edit = TRUE)
-# comment out the
-# covlist <- msm.parse.covariates(x, covariates, x$qcmodel)
-# argument on line 8 of the file
-# ensure to undo this after running the function
+sojourn.msm(msm_model_3)
 
 # sojorn time for waned third dose
 covlist <- list(`vaccine_shortFourth dose` = -0.5947409)
-S1 <- sojourn.msm(msvag_just_rev)
+S1 <- sojourn.msm(msm_model_3)
 
 # sojorn time for fourth dose
 covlist <- list(`vaccine_shortFourth dose` = 1 - 0.5947409)
-S2 <- sojourn.msm(msvag_just_rev)
+S2 <- sojourn.msm(msm_model_3)
 
 # sojorn time for 2+ years, waned third dose
 covlist <- list(
@@ -318,7 +301,7 @@ covlist <- list(
     `months_since_pos0-6 months` = -0.2316094,
     `months_since_posConfirmed naive` = -0.1055653
 )
-S3 <- sojourn.msm(msvag_just_rev)
+S3 <- sojourn.msm(msm_model_3)
 
 # sojorn time for 1-2 years, waned third dose
 covlist <- list(
@@ -327,7 +310,7 @@ covlist <- list(
     `months_since_pos0-6 months` = -0.2316094,
     `months_since_posConfirmed naive` = -0.1055653
 )
-S4 <- sojourn.msm(msvag_just_rev)
+S4 <- sojourn.msm(msm_model_3)
 
 # sojorn time for 6-12 mo, waned third dose
 covlist <- list(
@@ -336,7 +319,7 @@ covlist <- list(
     `months_since_pos0-6 months` = -0.2316094,
     `months_since_posConfirmed naive` = -0.1055653
 )
-S5 <- sojourn.msm(msvag_just_rev)
+S5 <- sojourn.msm(msm_model_3)
 
 # sojorn time for 0-6mo, waned third dose
 covlist <- list(
@@ -345,7 +328,7 @@ covlist <- list(
     `months_since_pos0-6 months` = 1 - 0.2316094,
     `months_since_posConfirmed naive` = -0.1055653
 )
-S6 <- sojourn.msm(msvag_just_rev)
+S6 <- sojourn.msm(msm_model_3)
 
 # sojorn time for naive, waned third dose
 covlist <- list(
@@ -354,7 +337,10 @@ covlist <- list(
     `months_since_pos0-6 months` = -0.2316094,
     `months_since_posConfirmed naive` = 1 - 0.1055653
 )
-S7 <- sojourn.msm(msvag_just_rev)
+S7 <- sojourn.msm(msm_model_3)
+
+# sojorn time for symptomatic
+S8 <- sojourn.msm(msm_model_7)
 
 # table with sojourn times for each category
 # multiply by 7 to convert weeks to days

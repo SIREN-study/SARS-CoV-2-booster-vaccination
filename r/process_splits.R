@@ -1,5 +1,5 @@
 #
-# Purpose: Uses the survival library and tmerge function to split data
+# Purpose: Uses the survival library and tmerge function to split the processed data
 # into time chunks for the Cox proportional hazards models
 #
 
@@ -31,7 +31,6 @@ siren_cox <- siren_df_interim4 |>
         ),
         vaccine = as.numeric(difftime(vaccine_date4, as_date("2022-09-12"), units = "weeks")),
         last_pos_wk = as.numeric(difftime(last_pos, as_date("2022-09-12"), units = "weeks")),
-        #last_pos_wk = if_else(is.na(last_pos_wk), Inf, last_pos_wk),
         ar = as.numeric(difftime(last_pos, as_date("2022-09-12"), units = "weeks")), # 6 weeks of dropout after infection_dates
         time = if_else(time == 0, 1 / 7, time),
         prev_var = fct_recode(prev_var, `No recorded previous infection` = "Naive")
@@ -41,7 +40,6 @@ siren_cox <- siren_df_interim4 |>
     distinct(study_id, event, .keep_all = TRUE) |>
     arrange(study_id, time) |>
     filter(
-        (!(study_id == lead(study_id) & event == 0) | study_id == "ZT510260"), # this is the tail study_id
         time > 0
     ) |>
     mutate(
@@ -86,7 +84,7 @@ siren_split <- tmerge(
         months_since_pos = fct_relevel(months_since_pos, "2+ years"),
         monthyear = factor(monthyear,
             levels = c(0:7),
-            labels = c("Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr")
+            labels = c("Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar")
         )
     ) |>
     filter(

@@ -1,5 +1,5 @@
 #
-# Purpose: Imports and cleans the SIREN data and generates datasets
+# Purpose: Imports and cleans the raw SIREN data and generates datasets
 #
 
 here::i_am("r/process_data.R")
@@ -29,7 +29,7 @@ fu <- read.dta13("~/coviddata/FollowUp_20230421.dta") |>
 ab <- read.dta13("~/coviddata/AB_20230421.dta") |>
     clean_names()
 
-# true naive dataset
+# true naives dataset - manually updated to only contain those with no previous infection
 true_naives <- read_xlsx(here("data/interim4_infection_history_updated.xlsx")) |>
     clean_names() |>
     filter(prev_var == "Naive") |>
@@ -44,7 +44,7 @@ end_date <- as_date("2023-03-31")
 window_length <- 42
 symptom_window <- 14
 
-# remove records with inconsistencies from the SIREN dataset
+# generate a siren_cohort dataset with all participants who have valid information
 siren_cohort <- pt |>
     filter(
         (vaccine_date1 < vaccine_date2 | is.na(vaccine_date2) | is.na(vaccine_date1)),
@@ -52,9 +52,7 @@ siren_cohort <- pt |>
         (vaccine_date2 < vaccine_date3 | is.na(vaccine_date3) | is.na(vaccine_date2)),
         !gender %in% c("Non_binary", "Prefer_not"),
         ethnicity != "Prefer_not",
-        study_end_date > start_date,
-        # manual exclusion
-        study_id != "S2411451"
+        study_end_date > start_date
     ) |>
     mutate(
         agegr = factor(agegr, labels = c("<25", "25-34", "35-44", "45-54", "55-64", "65+")),
@@ -78,8 +76,6 @@ siren_cohort <- pt |>
         household = fct_relevel(household, "Lives_with_others_nochild")
     )
 
-siren_cohort |> count() # n = 17,212 records
-
 # calculate infection history using ab dataset
 # anti-N positive confirms previous infection
 # anti-S positive confirms previous infection and/or response to vaccination
@@ -102,10 +98,10 @@ antibody_data <- ab |>
         result = result_ab,
         specimen_date = spec_date_ab,
         study_id = study_id
-        # .keep = "none"
     ) |>
     ungroup()
 
+# define a function to calculate the infection window
 calculate_window <- function(df) {
     for (val in 1:7) {
         df <- df |>
@@ -115,7 +111,7 @@ calculate_window <- function(df) {
     return(df)
 }
 
-# last test (regardless of result) before the start date
+# last test (regardless of result) up to three months before the start date
 last_test <- pcr |>
     bind_rows(antibody_data) |>
     filter(
@@ -204,7 +200,7 @@ infection_window_wide <- infection_window |>
         values_from = c(window_start, window_end)
     )
 
-# compute the variant periods
+# prior variant periods
 # label variant by episode_date
 var_type <- infection_window |>
     transmute(
@@ -228,11 +224,6 @@ pcr_clean <- pcr |>
         !is.na(result),
         specimen_date >= start_date - window_length,
         specimen_date <= end_date
-    ) |>
-    # filter some spurious tests
-    filter(
-        !(study_id == "REN10070" & specimen_date %in% c(as_date("2022-07-17"), as_date("2022-07-20"), as_date("2022-07-22"), as_date("2022-07-26"))),
-        !(study_id == "RA710438" & specimen_date %in% c(as_date("2022-07-01"), as_date("2022-07-04"), as_date("2022-07-06"), as_date("2022-07-08"), as_date("2022-07-11")))
     ) |>
     left_join(infection_window_wide, by = "study_id") |>
     mutate(
@@ -292,7 +283,6 @@ pcr_clean <- pcr |>
 pcr_pw <- expand_grid(
     siren_cohort |> filter(study_id %in% pcr_clean$study_id),
     # by not including the first month we have (effective) delayed entry into the cohort, at the date of the first PCR test
-    # this may not be the most realistic assumption
     specimen_date = c(
         "2022-10-01", "2022-11-01", "2022-12-01",
         "2023-01-01", "2023-02-01", "2023-03-01"
@@ -313,11 +303,6 @@ lk_pos <- pcr |>
         !is.na(result),
         specimen_date < start_date,
         result == 1
-    ) |>
-    # filter some spurious tests
-    filter(
-        !(study_id == "REN10070" & specimen_date %in% c(as_date("2022-07-17"), as_date("2022-07-20"), as_date("2022-07-22"), as_date("2022-07-26"))),
-        !(study_id == "RA710438" & specimen_date %in% c(as_date("2022-07-01"), as_date("2022-07-04"), as_date("2022-07-06"), as_date("2022-07-08"), as_date("2022-07-11")))
     ) |>
     group_by(study_id) |>
     arrange(study_id, specimen_date) |>
@@ -381,7 +366,7 @@ siren_df <- siren_cohort |>
     )
 
 # record first (and subsequent) ba.3/4 infections
-# only amongst waned third dose and with AZ/PF regimen
+# only amongst waned third dose individuals
 infection_dates <- siren_df |>
     filter(
         eligible == 1,
@@ -397,7 +382,7 @@ infection_dates <- siren_df |>
 
 # symptom status
 # must have experienced symptoms within 14 days of first positive pcr test to be considered symptomatic
-# aymptomatic must be no reported symptoms and first positive pcr test within reporting period
+# aymptomatic must have no reported symptoms and first positive pcr test within reporting period
 symptoms <- fu |>
     filter(
         study_id %in% siren_df$study_id
@@ -448,12 +433,11 @@ siren_df_interim4 <- siren_df |>
     left_join(true_naives, by = "study_id") |>
     mutate(
         monthyear = factor(monthyear, levels = c(
-            "Jun 2022", "Jul 2022", "Aug 2022",
             "Sep 2022", "Oct 2022", "Nov 2022",
             "Dec 2022", "Jan 2023", "Feb 2023",
             "Mar 2023"
         )),
-        monthyear = fct_relevel(monthyear, "Jun 2022"),
+        monthyear = fct_relevel(monthyear, "Sep 2022"),
         state = if_else(state == 3, 1, state), # tbc
         prev_var = case_when(
             infection_date_1 < specimen_date & (infection_date_1 < episode_start | is.na(episode_start)) & !is.na(infection_date_1) ~ "BA.4/5",
@@ -477,11 +461,6 @@ siren_df_interim4 <- siren_df |>
             vaccine_date4 + 112 <= specimen_date ~ "Fourth dose 4+ months",
             vaccine_date4 + 56 <= specimen_date ~ "Fourth dose 2-4 months",
             vaccine_date4 <= specimen_date ~ "Fourth dose 0-2 months",
-            TRUE ~ "Waned third dose"
-        ),
-        vaccine_2 = case_when(
-            vaccine_date4 + 84 <= specimen_date ~ "Fourth dose 3+ months",
-            vaccine_date4 <= specimen_date ~ "Fourth dose 0-3 months",
             TRUE ~ "Waned third dose"
         ),
         vaccine_short = case_when(
@@ -513,7 +492,7 @@ siren_df_interim4 <- siren_df |>
     ) |>
     select(-covid_symptoms.x, -covid_symptoms.y)
 
-# remove individuals with zero actual pcr results
+# remove individuals with zero pcr results
 study_ids <- siren_df_interim4 |>
     select(study_id, state) |>
     filter(state != 99) |>
