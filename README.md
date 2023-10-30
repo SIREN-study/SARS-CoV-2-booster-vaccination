@@ -1,6 +1,6 @@
 # Protection of COVID-19 booster vaccination and prior infection against symptomatic and asymptomatic SARS-CoV-2
 
-This repository contains the R code used to undertake vaccine effectiveness and durability analyses for the paper "Protection of COVID-19 booster vaccination and prior infection against symptomatic and asymptomatic SARS-CoV-2.", published in xxx on xxx.
+This repository contains the R code used to undertake vaccine effectiveness and durability analyses for the paper "Protection of second booster vaccinations and prior infection against SARS-CoV-2 in the UK SIREN healthcare worker cohort."
 
 ## Statistical software
 - R (v.4.3.1; R Foundation for Statistical Computing, Vienna, Austria)
